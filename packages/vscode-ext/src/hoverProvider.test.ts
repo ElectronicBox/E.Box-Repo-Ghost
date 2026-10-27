@@ -178,7 +178,7 @@ describe("createHoverProvider", () => {
     });
   });
 
-  it("returns a sanitized history-unavailable hover on failure", async () => {
+  it("returns a sanitized provider-failure hover on failure", async () => {
     getLineBlame.mockRejectedValue(new Error("token ghp_sensitive"));
     const logger = output();
     const provider = createHoverProvider(logger, { getConfig: () => config(true) });
@@ -190,10 +190,10 @@ describe("createHoverProvider", () => {
     );
 
     expect((hover as vscode.Hover).contents).toMatchObject({
-      value: "_History unavailable for this line._",
+      value: "_Repo Ghost could not reach the ollama provider. Check its configuration and availability._",
     });
     expect(logger.warn).toHaveBeenCalledWith(
-      "Unable to load line story; history unavailable.",
+      "Unable to load line story; ollama provider request failed (Error).",
     );
   });
 });

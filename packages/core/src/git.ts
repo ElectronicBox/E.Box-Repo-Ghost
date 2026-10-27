@@ -39,10 +39,10 @@ function errorMessage(error: unknown): string {
 
 async function getFileContext(filePath: string): Promise<FileContext> {
   const absolutePath = isAbsolute(filePath) ? resolve(filePath) : resolve(process.cwd(), filePath);
-  const git = simpleGit(resolve(absolutePath, ".."));
+  const discoveryGit = simpleGit(resolve(absolutePath, ".."));
   let repositoryRoot: string;
   try {
-    repositoryRoot = resolve(await git.revparse(["--show-toplevel"]));
+    repositoryRoot = resolve(await discoveryGit.revparse(["--show-toplevel"]));
   } catch (error) {
     throw new Error(
       `Cannot inspect "${absolutePath}": not inside a git repository, or git could not resolve its root.`,
@@ -51,7 +51,12 @@ async function getFileContext(filePath: string): Promise<FileContext> {
   }
   const relativePath = relative(repositoryRoot, absolutePath).replaceAll("\\", "/");
 
-  return { absolutePath, git, relativePath, repositoryRoot };
+  return {
+    absolutePath,
+    git: simpleGit(repositoryRoot),
+    relativePath,
+    repositoryRoot,
+  };
 }
 
 async function isBinaryFile(filePath: string): Promise<boolean> {

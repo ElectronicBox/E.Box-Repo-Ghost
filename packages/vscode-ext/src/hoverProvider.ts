@@ -30,8 +30,8 @@ export function createHoverProvider(
     return cache;
   });
 
-  function historyUnavailable(): vscode.Hover {
-    const markdown = new vscode.MarkdownString("_History unavailable for this line._");
+  function failureHover(message: string): vscode.Hover {
+    const markdown = new vscode.MarkdownString(`_${message}_`);
     markdown.isTrusted = false;
     return new vscode.Hover(markdown);
   }
@@ -61,7 +61,6 @@ export function createHoverProvider(
           hint.isTrusted = false;
           return new vscode.Hover(hint);
         }
-
         const cache = cacheFor(blame.repositoryRoot, config.cacheTtlMs);
         const cached = await cache.get(document.uri.fsPath, blame.lineContent, blame.headSha);
         if (cached !== undefined) return renderStory(cached, true);
@@ -96,8 +95,12 @@ export function createHoverProvider(
         await cache.set(document.uri.fsPath, blame.lineContent, blame.headSha, lineStory);
         return renderStory(lineStory, false);
       } catch (error) {
-        output.warn("Unable to load line story; history unavailable.");
-        return historyUnavailable();
+        const provider = options.getConfig().provider;
+        const errorClass = error instanceof Error ? error.constructor.name : "UnknownError";
+        output.warn(`Unable to load line story; ${provider} provider request failed (${errorClass}).`);
+        return failureHover(
+          `Repo Ghost could not reach the ${provider} provider. Check its configuration and availability.`,
+        );
       }
     },
   };

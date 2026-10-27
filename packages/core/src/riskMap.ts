@@ -99,10 +99,10 @@ async function warnIfShallowClone(git: SimpleGit): Promise<void> {
 /** Returns per-file risk entries limited to the requested directory within its repository. */
 export async function getRiskMap(directory: string): Promise<RiskEntry[]> {
   const absolutePath = isAbsolute(directory) ? resolve(directory) : resolve(process.cwd(), directory);
-  const git = simpleGit(absolutePath);
+  const discoveryGit = simpleGit(absolutePath);
   let repositoryRoot: string;
   try {
-    repositoryRoot = resolve(await git.revparse(["--show-toplevel"]));
+    repositoryRoot = resolve(await discoveryGit.revparse(["--show-toplevel"]));
   } catch (error) {
     throw new Error(
       `Cannot build a risk map for "${absolutePath}": not inside a git repository.`,
@@ -110,6 +110,7 @@ export async function getRiskMap(directory: string): Promise<RiskEntry[]> {
     );
   }
   const relativePath = relative(repositoryRoot, absolutePath).replaceAll("\\", "/") || ".";
+  const git = simpleGit(repositoryRoot);
   await warnIfShallowClone(git);
 
   const child = spawn(

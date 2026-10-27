@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -54,6 +54,21 @@ describe("git history edge cases", () => {
     expect(warning).toHaveBeenCalledWith(
       "repo-ghost: this is a shallow clone; file history may be incomplete.",
     );
+  });
+
+  it("uses repository-root paths for nested files", async () => {
+    const { root, git } = await createRepository();
+    const nestedDirectory = join(root, "packages", "core", "src");
+    const nestedFile = join(nestedDirectory, "nested.ts");
+    await mkdir(nestedDirectory, { recursive: true });
+    await writeFile(nestedFile, "const nested = true;\n", "utf8");
+    await git.add(".");
+    await git.commit("Add nested file");
+
+    await expect(getLineBlame(nestedFile, 1)).resolves.toMatchObject({
+      lineContent: "const nested = true;",
+      commit: { message: "Add nested file" },
+    });
   });
 
 });
