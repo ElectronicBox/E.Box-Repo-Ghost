@@ -1,9 +1,10 @@
 import * as vscode from "vscode";
-import { clearGitHubToken, setGitHubToken } from "./config.js";
+import { clearGitHubToken, resolveConfig, setGitHubToken } from "./config.js";
 import { createHoverProvider } from "./hoverProvider.js";
 import { createOutputChannel } from "./outputChannel.js";
 import { openRiskMapView } from "./riskMapView.js";
 import { createStatusBar } from "./statusBar.js";
+import type { Config } from "@repo-ghost/core";
 
 const OUTPUT_CHANNEL_NAME = "repo-ghost";
 
@@ -30,11 +31,33 @@ async function enableProvider(): Promise<void> {
 export function activate(context: vscode.ExtensionContext): void {
   const output = createOutputChannel(vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME));
   const statusBar = createStatusBar(context);
-  statusBar.setEnabled(
-    vscode.workspace.getConfiguration("repoGhost").get<boolean>("enableLlm", false),
-  );
+  let config: Config = {
+    provider: "ollama",
+    model: "llama3.2",
+    baseUrl: "http://localhost:11434",
+    enableLlm: false,
+    enableGitHubEnrichment: false,
+    cacheTtlMs: 30 * 24 * 60 * 60 * 1_000,
+    requestTimeoutMs: 30_000,
+    tokenBudget: 1_800,
+    debug: false,
+  };
+  const refreshConfig = async (): Promise<void> => {
+    try {
+      config = await resolveConfig(context, output.channel);
+      statusBar.setEnabled(config.enableLlm);
+    } catch {
+      config = { ...config, enableLlm: false };
+      statusBar.setEnabled(false);
+      output.error("Unable to resolve repo-ghost settings; LLM summaries are disabled.");
+    }
+  };
+  void refreshConfig();
   context.subscriptions.push(
     output,
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("repoGhost")) void refreshConfig();
+    }),
     vscode.commands.registerCommand("repo-ghost.enableProvider", async () => {
       await enableProvider();
       statusBar.setEnabled(true);
@@ -62,11 +85,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.languages.registerHoverProvider(
       { scheme: "file" },
-      createHoverProvider(output, {
-        enableLlm: vscode.workspace
-          .getConfiguration("repoGhost")
-          .get<boolean>("enableLlm", false),
-      }),
+      createHoverProvider(output, { getConfig: () => config }),
     ),
   );
 }

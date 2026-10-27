@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { activate } from "./extension.js";
+import { resolveConfig } from "./config.js";
 
 const {
   registerCommand,
@@ -7,6 +8,7 @@ const {
   createOutputChannel,
   createStatusBarItem,
   getConfiguration,
+  onDidChangeConfiguration,
   applyEdit,
   writeFile,
 } = vi.hoisted(() => ({
@@ -27,6 +29,7 @@ const {
     get: vi.fn(() => false),
     update: vi.fn(),
   })),
+  onDidChangeConfiguration: vi.fn(() => ({ dispose: vi.fn() })),
   applyEdit: vi.fn(),
   writeFile: vi.fn(),
 }));
@@ -35,7 +38,12 @@ vi.mock("vscode", () => ({
   StatusBarAlignment: { Left: 1 },
   commands: { registerCommand },
   languages: { registerHoverProvider },
-  workspace: { getConfiguration, applyEdit, fs: { writeFile } },
+  workspace: {
+    getConfiguration,
+    onDidChangeConfiguration,
+    applyEdit,
+    fs: { writeFile },
+  },
   window: {
     createOutputChannel,
     createStatusBarItem,
@@ -47,6 +55,17 @@ vi.mock("vscode", () => ({
 vi.mock("./config.js", () => ({
   clearGitHubToken: vi.fn(),
   setGitHubToken: vi.fn(),
+  resolveConfig: vi.fn(async () => ({
+    provider: "ollama",
+    model: "llama3.2",
+    baseUrl: "http://localhost:11434",
+    enableLlm: false,
+    enableGitHubEnrichment: false,
+    cacheTtlMs: 60_000,
+    requestTimeoutMs: 30_000,
+    tokenBudget: 1_800,
+    debug: false,
+  })),
 }));
 
 beforeEach(() => {
@@ -70,7 +89,8 @@ describe("activate", () => {
       { scheme: "file" },
       expect.anything(),
     );
-    expect(context.subscriptions.length).toBe(7);
+    expect(onDidChangeConfiguration).toHaveBeenCalledOnce();
+    expect(context.subscriptions.length).toBe(8);
   });
 
   it("retains each registered disposable for extension shutdown", () => {
@@ -90,5 +110,31 @@ describe("activate", () => {
 
     expect(applyEdit).not.toHaveBeenCalled();
     expect(writeFile).not.toHaveBeenCalled();
+  });
+
+  it("re-resolves validated configuration when repo-ghost settings change", async () => {
+    const context = { subscriptions: [] as unknown[] };
+    activate(context as never);
+    const listener = (onDidChangeConfiguration.mock.calls as unknown as Array<[(
+      event: { affectsConfiguration(section: string): boolean },
+    ) => void]>)[0]?.[0] as
+      | ((event: { affectsConfiguration(section: string): boolean }) => void)
+      | undefined;
+
+    expect(listener).toBeDefined();
+    listener?.({ affectsConfiguration: () => true });
+    await Promise.resolve();
+
+    expect(resolveConfig).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the extension alive and disables LLM use when configuration fails", async () => {
+    vi.mocked(resolveConfig).mockRejectedValueOnce(new Error('invalid setting "provider"'));
+    const context = { subscriptions: [] as unknown[] };
+
+    expect(() => activate(context as never)).not.toThrow();
+    await Promise.resolve();
+
+    expect(context.subscriptions.length).toBe(8);
   });
 });

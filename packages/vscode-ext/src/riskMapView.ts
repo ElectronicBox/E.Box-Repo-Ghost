@@ -12,6 +12,11 @@ export interface RiskMapAssets {
 }
 
 const WEBVIEW_DIRECTORY = ["dist", "webview"];
+const ERROR_PAGE_ASSETS: RiskMapAssets = {
+  html: "<!doctype html><html><head><meta charset=\"UTF-8\"><!-- REPO_GHOST_CSP --><!-- REPO_GHOST_CSS --></head><body><main><h1>Repo Ghost Risk Map</h1><p id=\"error\"><!-- REPO_GHOST_TITLE --></p></main><!-- REPO_GHOST_DATA --><!-- REPO_GHOST_JS --></body></html>",
+  css: "",
+  js: "",
+};
 
 function escapeHtml(value: string): string {
   return value
@@ -51,6 +56,20 @@ export function renderRiskMapHtml(
     .replace("<!-- REPO_GHOST_TITLE -->", escapeHtml(`Risk map (${entries.length} files)`));
 }
 
+function renderRiskMapErrorHtml(message: string, nonce: string): string {
+  return renderRiskMapHtml(
+    [],
+    {
+      ...ERROR_PAGE_ASSETS,
+      html: ERROR_PAGE_ASSETS.html.replace(
+        "<!-- REPO_GHOST_TITLE -->",
+        escapeHtml(message),
+      ),
+    },
+    nonce,
+  );
+}
+
 export async function loadRiskMapAssets(extensionPath: string): Promise<RiskMapAssets> {
   const directory = join(extensionPath, ...WEBVIEW_DIRECTORY);
   const [html, css, js] = await Promise.all([
@@ -81,7 +100,7 @@ export async function openRiskMapView(
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load risk map.";
     output.error(message);
-    panel.webview.html = `<html><body><h1>Repo Ghost Risk Map</h1><p>${escapeHtml(message)}</p></body></html>`;
+    panel.webview.html = renderRiskMapErrorHtml(message, randomBytes(16).toString("hex"));
   }
   return panel;
 }

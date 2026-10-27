@@ -52,6 +52,7 @@
   }
 
   document.querySelector("thead").addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
     const button = event.target.closest("button[data-sort]");
     if (!button) return;
     const nextKey = button.dataset.sort;

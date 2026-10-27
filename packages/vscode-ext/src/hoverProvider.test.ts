@@ -3,10 +3,20 @@ import * as vscode from "vscode";
 import { createHoverProvider } from "./hoverProvider.js";
 import type { RepoGhostOutput } from "./outputChannel.js";
 
+const { getLineBlame, getFileHistory, summarize, enrichCommit } = vi.hoisted(() => ({
+  getLineBlame: vi.fn(),
+  getFileHistory: vi.fn(),
+  summarize: vi.fn(),
+  enrichCommit: vi.fn(),
+}));
+
 vi.mock("vscode", () => ({
   MarkdownString: class {
     isTrusted = false;
     value = "";
+    constructor(value?: string) {
+      this.value = value ?? "";
+    }
     appendMarkdown(value: string) {
       this.value += value;
     }
@@ -17,10 +27,14 @@ vi.mock("vscode", () => ({
 }));
 
 vi.mock("@repo-ghost/core", () => ({
-  getLineBlame: vi.fn(),
+  createStoryCache: vi.fn(),
+  enrichCommit,
+  getFileHistory,
+  getLineBlame,
+  summarize,
 }));
 
-import { getLineBlame } from "@repo-ghost/core";
+import type { Config, LineStory, StoryCache } from "@repo-ghost/core";
 
 function output(): RepoGhostOutput {
   return {
@@ -32,38 +46,51 @@ function output(): RepoGhostOutput {
   };
 }
 
+function config(enableLlm: boolean): Config {
+  return {
+    provider: "ollama",
+    model: "llama3.2",
+    baseUrl: "http://localhost:11434",
+    enableLlm,
+    enableGitHubEnrichment: false,
+    cacheTtlMs: 60_000,
+    requestTimeoutMs: 30_000,
+    tokenBudget: 1_800,
+    debug: false,
+  };
+}
+
+function blame() {
+  return {
+    lineContent: "return value;",
+    repositoryRoot: "C:\\repo",
+    headSha: "0123456789abcdef0123456789abcdef01234567",
+    commit: {
+      sha: "a1b2c3d4e5f6789012345678901234567890abcd",
+      authorName: "Alice",
+      authorEmail: "alice@example.test",
+      authoredAt: "2025-01-01T00:00:00.000Z",
+      message: "Fix value handling",
+      filePath: "src/example.ts",
+      additions: 1,
+      deletions: 1,
+    },
+  };
+}
+
+function cache(get: StoryCache["get"]): StoryCache {
+  return {
+    get,
+    set: vi.fn(),
+    clear: vi.fn(),
+    invalidateOnHeadChange: vi.fn(),
+  };
+}
+
 describe("createHoverProvider", () => {
-  it("returns commit details for the hovered source line", async () => {
-    vi.mocked(getLineBlame).mockResolvedValue({
-      lineContent: "return value;",
-      commit: {
-        sha: "a1b2c3d4e5f6789012345678901234567890abcd",
-        authorName: "Alice",
-        authorEmail: "alice@example.test",
-        authoredAt: "2025-01-01T00:00:00.000Z",
-        message: "Fix value handling",
-        filePath: "src/example.ts",
-        additions: 1,
-        deletions: 1,
-      },
-    });
-    const provider = createHoverProvider(output());
-
-    const hover = await provider.provideHover(
-      { uri: { fsPath: "C:\\repo\\src\\example.ts" } } as vscode.TextDocument,
-      { line: 4, character: 2 } as vscode.Position,
-      {} as vscode.CancellationToken,
-    );
-
-    expect(getLineBlame).toHaveBeenCalledWith("C:\\repo\\src\\example.ts", 5);
-    expect(hover).toBeInstanceOf(vscode.Hover);
-    expect((hover as vscode.Hover).contents).toBeInstanceOf(vscode.MarkdownString);
-  });
-
-  it("reports history failures without throwing", async () => {
-    vi.mocked(getLineBlame).mockRejectedValue(new Error("git unavailable"));
-    const logger = output();
-    const provider = createHoverProvider(logger);
+  it("returns nothing when blame is unavailable", async () => {
+    getLineBlame.mockResolvedValue(null);
+    const provider = createHoverProvider(output(), { getConfig: () => config(true) });
 
     await expect(
       provider.provideHover(
@@ -72,12 +99,11 @@ describe("createHoverProvider", () => {
         {} as vscode.CancellationToken,
       ),
     ).resolves.toBeUndefined();
-    expect(logger.warn).toHaveBeenCalledWith("Unable to load line history: git unavailable");
   });
 
-  it("shows the enable-provider hint when LLM is disabled", async () => {
-    vi.mocked(getLineBlame).mockResolvedValue(null);
-    const provider = createHoverProvider(output(), { enableLlm: false });
+  it("shows the enable-provider hint and never calls the LLM when disabled", async () => {
+    getLineBlame.mockResolvedValue(blame());
+    const provider = createHoverProvider(output(), { getConfig: () => config(false) });
 
     const hover = await provider.provideHover(
       { uri: { fsPath: "C:\\repo\\file.ts" } } as vscode.TextDocument,
@@ -86,24 +112,24 @@ describe("createHoverProvider", () => {
     );
 
     expect(hover).toBeInstanceOf(vscode.Hover);
+    expect(summarize).not.toHaveBeenCalled();
   });
 
-  it("adds the cached badge when a story cache hit is reported", async () => {
-    vi.mocked(getLineBlame).mockResolvedValue({
-      lineContent: "return value;",
-      commit: {
-        sha: "a1b2c3d4e5f6789012345678901234567890abcd",
-        authorName: "Alice",
-        authorEmail: "alice@example.test",
-        authoredAt: "2025-01-01T00:00:00.000Z",
-        message: "Fix value handling",
-        filePath: "src/example.ts",
-        additions: 1,
-        deletions: 1,
-      },
-    });
+  it("renders a cached story without calling the LLM", async () => {
+    getLineBlame.mockResolvedValue(blame());
+    const story = {
+      ...blame(),
+      filePath: "C:\\repo\\file.ts",
+      line: 1,
+      pullRequests: [],
+      issues: [],
+      backstory: "Cached explanation.",
+      cached: true,
+    } satisfies LineStory;
+    const get = vi.fn().mockResolvedValue(story);
     const provider = createHoverProvider(output(), {
-      getCachedBadge: vi.fn().mockResolvedValue(true),
+      getConfig: () => config(true),
+      getCache: () => cache(get),
     });
 
     const hover = await provider.provideHover(
@@ -112,6 +138,62 @@ describe("createHoverProvider", () => {
       {} as vscode.CancellationToken,
     );
 
-    expect((hover as vscode.Hover).contents).toMatchObject({ value: expect.stringContaining("⚡ cached") });
+    expect(get).toHaveBeenCalledWith(
+      "C:\\repo\\file.ts",
+      "return value;",
+      "0123456789abcdef0123456789abcdef01234567",
+    );
+    expect((hover as vscode.Hover).contents).toMatchObject({
+      value: expect.stringContaining("⚡ cached"),
+    });
+    expect(summarize).not.toHaveBeenCalled();
+  });
+
+  it("summarizes and caches a story on a cache miss", async () => {
+    getLineBlame.mockResolvedValue(blame());
+    getFileHistory.mockReturnValue((async function* () {
+      yield blame().commit;
+    })());
+    summarize.mockResolvedValue("New explanation.");
+    enrichCommit.mockResolvedValue({ pullRequests: [], issues: [] });
+    const set = vi.fn();
+    const provider = createHoverProvider(output(), {
+      getConfig: () => config(true),
+      getCache: () => ({
+        ...cache(vi.fn().mockResolvedValue(undefined)),
+        set,
+      }),
+    });
+
+    const hover = await provider.provideHover(
+      { uri: { fsPath: "C:\\repo\\file.ts" } } as vscode.TextDocument,
+      { line: 0, character: 0 } as vscode.Position,
+      {} as vscode.CancellationToken,
+    );
+
+    expect(summarize).toHaveBeenCalledOnce();
+    expect(set).toHaveBeenCalledOnce();
+    expect((hover as vscode.Hover).contents).toMatchObject({
+      value: expect.stringContaining("New explanation."),
+    });
+  });
+
+  it("returns a sanitized history-unavailable hover on failure", async () => {
+    getLineBlame.mockRejectedValue(new Error("token ghp_sensitive"));
+    const logger = output();
+    const provider = createHoverProvider(logger, { getConfig: () => config(true) });
+
+    const hover = await provider.provideHover(
+      { uri: { fsPath: "C:\\repo\\file.ts" } } as vscode.TextDocument,
+      { line: 0, character: 0 } as vscode.Position,
+      {} as vscode.CancellationToken,
+    );
+
+    expect((hover as vscode.Hover).contents).toMatchObject({
+      value: "_History unavailable for this line._",
+    });
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Unable to load line story; history unavailable.",
+    );
   });
 });

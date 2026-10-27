@@ -187,4 +187,29 @@ describe("createStoryCache", () => {
     const cacheText = await readFile(join(root, ".repo-ghost", "cache.json"), "utf8");
     expect(cacheText).not.toContain(canary);
   });
+
+  it("redacts token-like content from persisted story fields", async () => {
+    const root = await createRoot();
+    const cache = createStoryCache(root, 60_000);
+    const canary = "ghp_123456789012345678901234567890123456";
+    await cache.set(story.filePath, story.lineContent, "head-a", {
+      ...story,
+      backstory: `Keep this explanation ${canary}.`,
+      pullRequests: [{
+        number: 1,
+        title: `Title ${canary}`,
+        body: `Body ${canary}`,
+        url: "https://github.com/example/repo/pull/1",
+        state: "OPEN",
+        mergedAt: null,
+        comments: [],
+      }],
+    });
+
+    const cacheText = await readFile(join(root, ".repo-ghost", "cache.json"), "utf8");
+    expect(cacheText).not.toContain(canary);
+    expect(cacheText).toContain("Keep this explanation [REDACTED].");
+    expect(cacheText).toContain("Title [REDACTED]");
+    expect(cacheText).toContain("Body [REDACTED]");
+  });
 });

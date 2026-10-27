@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   buildPrompt,
+  enrichCommit,
   getFileHistory,
   getLineBlame,
   getRiskMap,
@@ -63,17 +64,24 @@ function createConfig(enabled: boolean, env: NodeJS.ProcessEnv): Config {
   };
 }
 
-async function createStory(filePath: string, line: number): Promise<RawStory> {
+async function createStory(filePath: string, line: number, config: Config): Promise<RawStory> {
   const blame = await getLineBlame(filePath, line);
   const commits = [];
   for await (const commit of getFileHistory(filePath)) {
     commits.push(commit);
     if (commits.length >= 20) break;
   }
+  const enrichment =
+    blame !== null && config.githubToken
+      ? await enrichCommit(blame.commit.sha, {
+          githubToken: config.githubToken,
+          requestTimeoutMs: config.requestTimeoutMs,
+        })
+      : { pullRequests: [], issues: [] };
   return {
     commits: blame === null ? commits : [blame.commit, ...commits.filter((commit) => commit.sha !== blame.commit.sha)],
-    pullRequests: [],
-    issues: [],
+    pullRequests: enrichment.pullRequests,
+    issues: enrichment.issues,
     lineContent: blame?.lineContent ?? (await readFile(resolve(filePath), "utf8")).split(/\r?\n/)[line - 1] ?? "",
   };
 }
@@ -102,8 +110,6 @@ export async function runCli(
     if (command !== "explain") {
       throw new Error("Usage: repo-ghost explain <file>:<line> [--json] [--dry-run]");
     }
-    const location = parseLocation(args[1] ?? "");
-    const story = await createStory(location.filePath, location.line);
     const enabled = env.REPO_GHOST_ENABLE_LLM === "1";
     if (!enabled) {
       if (options.json) writeLine(stdout, JSON.stringify({ enabled: false, message: ENABLE_PROVIDER_MESSAGE }));
@@ -112,6 +118,8 @@ export async function runCli(
     }
 
     const config = createConfig(enabled, env);
+    const location = parseLocation(args[1] ?? "");
+    const story = await createStory(location.filePath, location.line, config);
     const prompt = buildPrompt(story, config);
     if (options.dryRun) {
       writeLine(stdout, prompt);

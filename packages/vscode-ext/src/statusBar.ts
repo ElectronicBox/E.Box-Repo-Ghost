@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 
 export interface StatusBarController extends vscode.Disposable {
   setEnabled(enabled: boolean): void;
-  setBusy(busy: boolean): void;
 }
 
 export function createStatusBar(context: vscode.ExtensionContext): StatusBarController {
@@ -18,9 +17,6 @@ export function createStatusBar(context: vscode.ExtensionContext): StatusBarCont
       item.tooltip = enabled
         ? "Repo Ghost is enabled"
         : "Repo Ghost is disabled; click to enable a provider";
-    },
-    setBusy(busy) {
-      if (busy) item.text = "$(sync~spin) Repo Ghost";
     },
     dispose() {
       item.dispose();

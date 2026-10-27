@@ -17,6 +17,42 @@ const CacheFileSchema = z.object({
 
 type CacheFile = z.infer<typeof CacheFileSchema>;
 
+const SECRET_PATTERNS = [
+  /ghp_[A-Za-z0-9]{36}/g,
+  /github_pat_[A-Za-z0-9_]{82}/g,
+  /sk-ant-[A-Za-z0-9\-_]{80,}/g,
+  /sk-[A-Za-z0-9]{20,}/g,
+];
+
+export function redactSecrets(text: string): string {
+  return SECRET_PATTERNS.reduce((value, pattern) => value.replace(pattern, "[REDACTED]"), text);
+}
+
+function redactStory(story: LineStory): LineStory {
+  return {
+    ...story,
+    backstory: redactSecrets(story.backstory),
+    pullRequests: story.pullRequests.map((pullRequest) => ({
+      ...pullRequest,
+      title: redactSecrets(pullRequest.title),
+      body: redactSecrets(pullRequest.body),
+      comments: pullRequest.comments.map((comment) => ({
+        ...comment,
+        body: redactSecrets(comment.body),
+      })),
+    })),
+    issues: story.issues.map((issue) => ({
+      ...issue,
+      title: redactSecrets(issue.title),
+      body: redactSecrets(issue.body),
+      comments: issue.comments.map((comment) => ({
+        ...comment,
+        body: redactSecrets(comment.body),
+      })),
+    })),
+  };
+}
+
 export interface StoryCache {
   get(filePath: string, lineContent: string, headSha: string): Promise<LineStory | undefined>;
   set(filePath: string, lineContent: string, headSha: string, story: LineStory): Promise<void>;
@@ -150,7 +186,10 @@ export function createStoryCache(repositoryRoot: string, ttlMs: number): StoryCa
     async set(filePath, lineContent, headSha, story) {
       const current = await loadState();
       current.headSha = headSha;
-      const validatedStory = LineStorySchema.parse({ ...story, cached: false });
+      const validatedStory = LineStorySchema.parse({
+        ...redactStory(story),
+        cached: false,
+      });
       current.entries[createCacheKey(filePath, lineContent, headSha)] = {
         cachedAt: Date.now(),
         story: validatedStory,

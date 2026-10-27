@@ -12,6 +12,8 @@ const BINARY_SAMPLE_SIZE = 8 * 1024;
 export interface LineBlame {
   commit: CommitInfo;
   lineContent: string;
+  repositoryRoot: string;
+  headSha: string;
 }
 
 export interface ChurnStats {
@@ -264,6 +266,8 @@ export async function getLineBlame(filePath: string, line: number): Promise<Line
         deletions: 0,
       }),
       lineContent: sourceLine.slice(1),
+      repositoryRoot: context.repositoryRoot,
+      headSha: (await context.git.revparse(["HEAD"])).trim(),
     };
   } catch (error) {
     console.warn(`repo-ghost: git blame unavailable for "${filePath}:${line}": ${errorMessage(error)}`);
@@ -322,7 +326,9 @@ export async function getChurnStats(filePath: string): Promise<ChurnStats> {
       const added = fields[0];
       const deleted = fields[1];
       if (added !== undefined && /^\d+$/.test(added)) additions += Number(added);
+      else console.warn(`repo-ghost: skipping malformed numstat record for "${filePath}".`);
       if (deleted !== undefined && /^\d+$/.test(deleted)) deletions += Number(deleted);
+      else console.warn(`repo-ghost: skipping malformed numstat record for "${filePath}".`);
     }
     if (stdoutError !== undefined) throw stdoutError;
     await exit;

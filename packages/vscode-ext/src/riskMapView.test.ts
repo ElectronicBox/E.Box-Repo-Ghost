@@ -94,5 +94,8 @@ describe("renderRiskMapHtml", () => {
 
     expect(output.error).toHaveBeenCalledWith("git unavailable");
     expect(panel.webview.html).toContain("git unavailable");
+    expect(panel.webview.html).toContain("nonce-");
+    expect(panel.webview.html).toContain("<style nonce=");
+    expect(panel.webview.html).toContain("<script nonce=");
   });
 });
