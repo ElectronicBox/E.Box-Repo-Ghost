@@ -26,6 +26,14 @@ pnpm --filter repo-ghost-vscode build
 
 Open the repository in VS Code, run **Repo Ghost: Enable Provider**, then hover a source line.
 
+If the hover says **“Repo Ghost could not reach the ollama provider,”** start Ollama and make
+sure the configured model is installed:
+
+```bash
+ollama serve
+ollama pull llama3.2
+```
+
 ### Claude Code CLI skill
 
 ```bash
