@@ -2,102 +2,145 @@
 
 ![repo-ghost demo](docs/hero.gif)
 
-> Hero GIF placeholder: replace `docs/hero.gif` with the recorded 30-second walkthrough.
+> Hero GIF placeholder — record a 5s hover demo here before launch.
+
+_git blame tells you who and when. repo-ghost tells you why — and which files are landmines._
 
 ## Why
 
-`git blame` tells you who changed a line, but not why it survived.
-repo-ghost connects local history, optional GitHub context, and grounded summaries.
-It helps a new maintainer understand risk before changing unfamiliar code.
-
-**Runs 100% locally / no telemetry.** Git history, cache, prompts, and provider calls stay on your machine unless you explicitly configure a remote LLM or GitHub enrichment.
+Unfamiliar code is risky because its history is scattered across commits, reviews, and issue context.
+repo-ghost assembles that evidence around the line you are reading.
+It gives maintainers a grounded explanation without changing the workspace.
 
 ## Install in 30 seconds
+
+### VS Code
 
 ```bash
 git clone https://github.com/example/repo-ghost.git
 cd repo-ghost
 corepack enable
 pnpm install
-pnpm typecheck
-pnpm test
+pnpm --filter repo-ghost-vscode build
 ```
 
-In VS Code, open the repository and run **Repo Ghost: Enable Provider**, then use **Repo Ghost: Show Risk Map** or hover a source line.
+Open the repository in VS Code, run **Repo Ghost: Enable Provider**, then hover a source line.
+
+### Claude Code CLI skill
+
+```bash
+git clone https://github.com/example/repo-ghost.git
+cd repo-ghost
+corepack enable
+pnpm install
+pnpm --filter @repo-ghost/claude-skill build
+pnpm --filter @repo-ghost/claude-skill exec repo-ghost explain src/auth.ts:42
+```
+
+## Privacy and consent
+
+**repo-ghost runs 100% locally, sends no telemetry, and fails closed until a provider is explicitly enabled.**
+Git history, prompts, cache data, and local provider calls stay on the machine. GitHub enrichment is
+opt-in and requires a token.
+
+There are three explicit consent paths:
+
+1. **VS Code modal:** run `Repo Ghost: Enable Provider`. The modal selects a provider and writes
+   `repoGhost.enableLlm: true`.
+2. **VS Code setting:** manually set `repoGhost.enableLlm: true`. This is explicit consent even
+   without using the modal.
+3. **CLI:** set `REPO_GHOST_ENABLE_LLM=1` for the invocation or shell session. Without it,
+   `explain` exits 0 with the enable-provider message and never calls the LLM.
 
 ## Configuration
 
-| Setting | Default | Description |
-| --- | --- | --- |
-| `repoGhost.provider` | `ollama` | `ollama`, `anthropic`, or `openai-compatible`. |
-| `repoGhost.model` | `llama3.2` | Model name passed to the provider. |
-| `repoGhost.baseUrl` | `http://localhost:11434` | Provider endpoint. |
-| `repoGhost.apiKey` | unset | Explicit local key; takes precedence over `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`. |
-| `repoGhost.enableLlm` | `false` | Application-scoped consent flag. The modal is the recommended path. |
-| `repoGhost.enableGitHubEnrichment` | `false` | Add pull request and issue context when a token is available. |
-| `repoGhost.cacheTtlMs` | 30 days | Line-story cache lifetime. |
-| `repoGhost.requestTimeoutMs` | 30 seconds | Provider request timeout. |
-| `repoGhost.tokenBudget` | 1800 | Maximum prompt budget. |
-| `repoGhost.debug` | `false` | Safe diagnostic logging only; secrets are never logged. |
-
-### Consent paths
-
-There are three explicit opt-in paths:
-
-1. **VS Code modal:** run `repo-ghost.enableProvider`. This writes the application-scoped `repoGhost.enableLlm` setting.
-2. **VS Code settings:** manually set `repoGhost.enableLlm: true`. This is also explicit consent and is documented here.
-3. **CLI:** set `REPO_GHOST_ENABLE_LLM=1` for one CLI invocation or shell session. Without it, `explain` exits successfully with an enable-provider message and never calls an LLM.
-
-GitHub enrichment uses the VS Code SecretStorage token first, then `GITHUB_TOKEN`. The standalone CLI has no SecretStorage and uses `GITHUB_TOKEN` only. Tokens are never printed.
+| Setting | Default | Scope | Description |
+| --- | --- | --- | --- |
+| `repoGhost.provider` | `ollama` | window | `ollama`, `anthropic`, or `openai-compatible`. |
+| `repoGhost.model` | `llama3.2` | window | Model name passed to the provider. |
+| `repoGhost.baseUrl` | `http://localhost:11434` | window | Provider endpoint URL. |
+| `repoGhost.apiKey` | unset | window | Explicit local key; takes precedence over `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`. |
+| `repoGhost.enableLlm` | `false` | **application** | Consent flag; modal-only is the recommended path. |
+| `repoGhost.enableGitHubEnrichment` | `false` | window | Add pull request and issue context when a token is available. |
+| `repoGhost.cacheTtlMs` | `2592000000` | window | Cache lifetime in milliseconds. |
+| `repoGhost.requestTimeoutMs` | `30000` | window | Provider and GitHub request timeout in milliseconds. |
+| `repoGhost.tokenBudget` | `1800` | window | Maximum prompt token budget. |
+| `repoGhost.debug` | `false` | window | Enable safe diagnostic logging only. |
 
 ## How it works
 
 ```text
-source line
-    |
-    v
-git blame + file history ---- optional GitHub enrichment
-    |                                  |
-    +------------ evidence ------------+
-                       |
-                       v
-              grounded prompt
-                       |
-             local/explicit provider
-                       |
-                       v
-                 line story
+line
+  |
+  v
+git blame
+  |
+  v
+git log
+  |
+  v
+GitHub PRs
+  |
+  v
+LLM
+  |
+  v
+validateStory
+  |
+  v
+cache
+  |
+  v
+hover
 ```
 
-The cache key includes the file path, line content hash, and repository HEAD SHA. Risk maps use first-parent history and aggregate commits, author diversity, reverts, and churn.
+The extension reads blame and first-party Git history, optionally adds GitHub review context, and
+asks an explicitly enabled provider for a short evidence-grounded story. `validateStory` rejects
+unsupported commit, PR, issue, or quoted-comment claims before the result is cached and shown.
 
-## What is new vs `git blame`?
+## What is new vs `git blame` and GitLens?
 
-`git blame` identifies the last commit for a line. repo-ghost adds the surrounding file history, optional review context, evidence-grounded explanation, cache-aware hover feedback, and a sortable repository risk map. It does not replace blame; it explains and prioritizes what blame alone cannot.
+### Genuinely new in repo-ghost
 
-## Claude Code skill
+- An LLM-synthesized causal narrative grounded in local history and optional review metadata.
+- A local-first default that does not call an LLM until the user explicitly enables one.
+- Claude Code skill packaging for the same explain and risk-map workflows.
 
-```bash
-repo-ghost explain src/auth.ts:42 --dry-run
-repo-ghost explain src/auth.ts:42 --json
-repo-ghost risk-map src --json
-```
+### Not new
 
-`--dry-run` prints the exact prompt without sending it. The CLI has no access to VS Code SecretStorage and never prints credentials.
+Line history itself already exists in `git blame`, GitLens, and Git tooling. repo-ghost does not
+claim to invent blame or commit navigation; it connects that evidence to a cautious explanation and
+repository-level risk prioritization.
+
+## Security
+
+VS Code GitHub tokens live in VS Code SecretStorage. The CLI uses `GITHUB_TOKEN` from the environment;
+it has no access to VS Code SecretStorage. Tokens are never logged, never written to
+`.repo-ghost/cache.json`, and are redacted at the cache boundary. The risk-map webview uses a
+per-render CSP nonce for every inline script and style block and builds table content with DOM APIs,
+not unsanitized `innerHTML`.
 
 ## Roadmap
 
-- **v0.2:** per-function risk map, function-level churn and ownership boundaries.
-- **v0.2:** richer GitHub review-thread enrichment.
-- **v0.3:** repository-wide story navigation and exportable reports.
+- **v0.2:** per-function risk map.
+- **v0.2:** cache lockfile for multi-process concurrency.
+- **v0.2:** `fsync` before rename for cache durability.
+- **v0.2:** raise `git.ts` coverage.
 
-## Development
+## Contributing
 
 ```bash
 pnpm lint
 pnpm typecheck
 pnpm test
-pnpm --filter repo-ghost-vscode build
+pnpm build
 ```
 
-Licensed under the MIT License.
+Pull requests should preserve the read-only workspace contract, fail-closed consent model, and
+no-telemetry guarantee.
+
+## MIT License
+
+Copyright (c) 2025 repo-ghost contributors
+
+Released under the [MIT License](./LICENSE).

@@ -31,23 +31,39 @@ export function redactSecrets(text: string): string {
 function redactStory(story: LineStory): LineStory {
   return {
     ...story,
+    filePath: redactSecrets(story.filePath),
+    lineContent: redactSecrets(story.lineContent),
+    commit: {
+      ...story.commit,
+      authorName: redactSecrets(story.commit.authorName),
+      authorEmail: redactSecrets(story.commit.authorEmail),
+      authoredAt: redactSecrets(story.commit.authoredAt),
+      message: redactSecrets(story.commit.message),
+      filePath: redactSecrets(story.commit.filePath),
+    },
     backstory: redactSecrets(story.backstory),
     pullRequests: story.pullRequests.map((pullRequest) => ({
       ...pullRequest,
       title: redactSecrets(pullRequest.title),
       body: redactSecrets(pullRequest.body),
+      url: redactSecrets(pullRequest.url),
       comments: pullRequest.comments.map((comment) => ({
         ...comment,
+        author: redactSecrets(comment.author),
         body: redactSecrets(comment.body),
+        createdAt: redactSecrets(comment.createdAt),
       })),
     })),
     issues: story.issues.map((issue) => ({
       ...issue,
       title: redactSecrets(issue.title),
       body: redactSecrets(issue.body),
+      url: redactSecrets(issue.url),
       comments: issue.comments.map((comment) => ({
         ...comment,
+        author: redactSecrets(comment.author),
         body: redactSecrets(comment.body),
+        createdAt: redactSecrets(comment.createdAt),
       })),
     })),
   };
