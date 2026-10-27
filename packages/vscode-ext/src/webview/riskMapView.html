@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- REPO_GHOST_CSP nonce="__REPO_GHOST_NONCE__" -->
+  <title><!-- REPO_GHOST_TITLE --></title>
+  <!-- REPO_GHOST_CSS -->
+</head>
+<body>
+  <main>
+    <header class="toolbar">
+      <div>
+        <h1>Repo Ghost risk map</h1>
+        <p id="summary"><!-- REPO_GHOST_TITLE --></p>
+      </div>
+      <label>Filter files <input id="filter" type="search" placeholder="src/"></label>
+    </header>
+    <p id="empty" class="empty" hidden>No files match this filter.</p>
+    <div class="table-wrap">
+      <table id="risk-table">
+        <thead>
+          <tr>
+            <th><button data-sort="filePath">File</button></th>
+            <th><button data-sort="riskScore">Risk</button></th>
+            <th><button data-sort="commitCount">Commits</button></th>
+            <th><button data-sort="distinctAuthors">Authors</button></th>
+            <th><button data-sort="revertCount">Reverts</button></th>
+            <th><button data-sort="churn">Churn</button></th>
+          </tr>
+        </thead>
+        <tbody id="risk-rows"></tbody>
+      </table>
+    </div>
+  </main>
+  <!-- REPO_GHOST_DATA -->
+  <!-- REPO_GHOST_JS -->
+</body>
+</html>

@@ -1,0 +1,116 @@
+{
+  "name": "repo-ghost-vscode",
+  "displayName": "repo-ghost",
+  "description": "Local-first codebase history and line-story analysis",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "repo-ghost",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "repo-ghost.enableProvider",
+        "title": "Repo Ghost: Enable Provider"
+      },
+      {
+        "command": "repo-ghost.setGitHubToken",
+        "title": "Repo Ghost: Set GitHub Token"
+      },
+      {
+        "command": "repo-ghost.clearGitHubToken",
+        "title": "Repo Ghost: Clear GitHub Token"
+      },
+      {
+        "command": "repo-ghost.showRiskMap",
+        "title": "Repo Ghost: Show Risk Map"
+      }
+    ],
+    "configuration": {
+      "title": "Repo Ghost",
+      "properties": {
+        "repoGhost.provider": {
+          "type": "string",
+          "enum": [
+            "ollama",
+            "anthropic",
+            "openai-compatible"
+          ],
+          "default": "ollama",
+          "description": "LLM provider."
+        },
+        "repoGhost.model": {
+          "type": "string",
+          "default": "llama3.2",
+          "description": "Model name."
+        },
+        "repoGhost.baseUrl": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Provider endpoint URL."
+        },
+        "repoGhost.apiKey": {
+          "type": "string",
+          "markdownDescription": "Optional local API key. Takes precedence over `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` for the selected provider."
+        },
+        "repoGhost.enableLlm": {
+          "type": "boolean",
+          "default": false,
+          "scope": "application",
+          "markdownDescription": "Enable via `repo-ghost.enableProvider`."
+        },
+        "repoGhost.enableGitHubEnrichment": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enrich commit history with GitHub pull requests and issues."
+        },
+        "repoGhost.cacheTtlMs": {
+          "type": "number",
+          "default": 2592000000,
+          "description": "Cache lifetime in milliseconds."
+        },
+        "repoGhost.requestTimeoutMs": {
+          "type": "number",
+          "default": 30000,
+          "description": "Provider request timeout in milliseconds."
+        },
+        "repoGhost.tokenBudget": {
+          "type": "number",
+          "default": 1800,
+          "description": "Maximum token budget for generated summaries."
+        },
+        "repoGhost.debug": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable safe diagnostic logging."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "pretypecheck": "pnpm --filter @repo-ghost/core build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "pretest": "pnpm --filter @repo-ghost/core build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@repo-ghost/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.95.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5",
+    "zod": "^3.24.2"
+  }
+}

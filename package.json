@@ -1,0 +1,17 @@
+{
+  "name": "repo-ghost",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Local-first codebase history and line-story analysis",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.5",
+  "scripts": {
+    "lint": "node scripts/lint.mjs",
+    "build": "pnpm --filter @repo-ghost/core build && pnpm --filter repo-ghost-vscode build",
+    "typecheck": "pnpm --filter @repo-ghost/core typecheck && pnpm --filter repo-ghost-vscode typecheck && pnpm --filter @repo-ghost/claude-skill typecheck",
+    "test": "pnpm --filter @repo-ghost/core test && pnpm --filter repo-ghost-vscode test && pnpm --filter @repo-ghost/claude-skill test"
+  }
+}
