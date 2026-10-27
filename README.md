@@ -147,8 +147,17 @@ pnpm build
 Pull requests should preserve the read-only workspace contract, fail-closed consent model, and
 no-telemetry guarantee.
 
-## MIT License
+## License
 
-Copyright (c) 2025 repo-ghost contributors
+Versions published before the non-commercial license transition remain
+available under the license that accompanied those versions, including MIT
+where applicable.
 
-Released under the [MIT License](./LICENSE).
+Current and future versions are provided under the
+[Repo Ghost Non-Commercial License](./LICENSE). It permits personal use and
+use by non-profit organizations. Commercial use, resale, redistribution,
+modification, derivative works, and inclusion in commercial products or
+services require prior written permission or a separate commercial license.
+
+This is a custom source-available license and is not an OSI-approved
+open-source license.
