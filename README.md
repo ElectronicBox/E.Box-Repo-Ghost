@@ -29,8 +29,8 @@ Open the repository in VS Code, run **Repo Ghost: Enable Provider**, then hover 
 ### Claude Code CLI skill
 
 ```bash
-git clone https://github.com/example/repo-ghost.git
-cd repo-ghost
+git clone https://github.com/ElectronicBox/E.Box-Repo-Ghost.git
+cd E.Box-Repo-Ghost
 corepack enable
 pnpm install
 pnpm --filter @repo-ghost/claude-skill build
