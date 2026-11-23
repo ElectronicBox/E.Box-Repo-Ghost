@@ -1,6 +1,6 @@
 {
   "name": "@repo-ghost/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local-first codebase history and line-story analysis",
   "license": "MIT",
   "type": "module",
