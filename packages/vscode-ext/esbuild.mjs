@@ -9,8 +9,13 @@ await build({
   format: "cjs",
   outfile: "dist/extension.js",
   sourcemap: true,
-  external: ["vscode"],
-  packages: "external",
+  // Bundle @repo-ghost/core into the extension so the extension host never
+  // resolves the workspace package at runtime. This keeps the extension
+  // working on every VS Code/Node combination (including hosts without
+  // require(ESM) support) instead of depending on core's exports map.
+  // Only the vscode API and zod (a properly dual-published dependency)
+  // stay external.
+  external: ["vscode", "zod"],
 });
 
 await mkdir("dist/webview", { recursive: true });
