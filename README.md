@@ -1,8 +1,6 @@
 # repo-ghost
 
-![repo-ghost demo](docs/hero.gif)
-
-> Hero GIF placeholder — record a 5s hover demo here before launch.
+> TODO (before launch): add a 5s hover demo GIF at `docs/hero.gif` and link it here.
 
 _git blame tells you who and when. repo-ghost tells you why — and which files are landmines._
 
@@ -21,10 +19,14 @@ git clone https://github.com/ElectronicBox/E.Box-Repo-Ghost.git
 cd E.Box-Repo-Ghost
 corepack enable
 pnpm install
-pnpm --filter repo-ghost-vscode build
+pnpm build
 ```
 
-Open the repository in VS Code, run **Repo Ghost: Enable Provider**, then hover a source line.
+1. Open the repository root in VS Code and press **F5** (the bundled
+   `.vscode/launch.json` builds the workspace and opens an Extension Development
+   host with repo-ghost loaded).
+2. In the development host window, open any Git repository folder.
+3. Run **Repo Ghost: Enable Provider**, then hover a source line.
 
 If the hover says **“Repo Ghost could not reach the ollama provider,”** start Ollama and make
 sure the configured model is installed:
@@ -43,6 +45,14 @@ corepack enable
 pnpm install
 pnpm --filter @repo-ghost/claude-skill build
 pnpm --filter @repo-ghost/claude-skill exec repo-ghost explain src/auth.ts:42
+```
+
+Without `REPO_GHOST_ENABLE_LLM=1` the CLI prints the enable-provider message and
+exits 0 (fail-closed). Set it for the invocation or shell session to run the real
+summary:
+
+```bash
+REPO_GHOST_ENABLE_LLM=1 pnpm --filter @repo-ghost/claude-skill exec repo-ghost explain src/auth.ts:42
 ```
 
 ## Privacy and consent
