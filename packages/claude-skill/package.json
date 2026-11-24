@@ -1,6 +1,7 @@
 {
   "name": "@repo-ghost/claude-skill",
   "version": "0.1.1",
+  "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
   "type": "module",
   "bin": {

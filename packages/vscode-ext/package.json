@@ -5,6 +5,7 @@
   "version": "0.1.1",
   "private": true,
   "publisher": "repo-ghost",
+  "license": "SEE LICENSE IN LICENSE.md",
   "engines": {
     "vscode": "^1.95.0"
   },
