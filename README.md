@@ -1,7 +1,5 @@
 # repo-ghost
 
-> TODO (before launch): add a 5s hover demo GIF at `docs/hero.gif` and link it here.
-
 _git blame tells you who and when. repo-ghost tells you why — and which files are landmines._
 
 ## Why
