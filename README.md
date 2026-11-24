@@ -157,9 +157,6 @@ no-telemetry guarantee.
 
 ## License
 
-Versions published before the non-commercial license transition remain
-available under the license that accompanied those versions, including MIT
-where applicable.
 
 Current and future versions are provided under the
 [Repo Ghost Non-Commercial License](./LICENSE). It permits personal use and
